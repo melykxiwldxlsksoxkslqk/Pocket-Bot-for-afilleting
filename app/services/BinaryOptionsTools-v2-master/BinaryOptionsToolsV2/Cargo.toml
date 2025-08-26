@@ -1,0 +1,31 @@
+[package]
+name = "BinaryOptionsToolsV2"
+version = "0.1.7"
+edition = "2021"
+description = "A library to connect to PocketOption using python with async and sync support."
+license = "BSD License (BSD)"
+homepage = "https://github.com/ChipaDevTeam/BinaryOptionsTools-v2"
+readme = "Readme.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "BinaryOptionsToolsV2"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.24.2", features = ["experimental-async", "chrono"] }
+pyo3-async-runtimes = { version = "0.24.0", features = ["tokio-runtime"] }
+
+binary-options-tools = { path = "../crates/binary_options_tools", version = "0.1.7" }
+
+thiserror = "2.0.12"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.139"
+uuid = "1.16.0"
+tracing = "0.1.41"
+tokio = "1.44.2"
+futures-util = "0.3.31"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+chrono = "0.4.41"
+url = "2.5.4"
+regex = "1.11.1"

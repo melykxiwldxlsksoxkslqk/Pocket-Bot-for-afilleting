@@ -1,0 +1,191 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# PEP 582; manage dependencies in the project directory
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+venv/
+env/
+ENV/
+env.bak
+venv.bak
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Environments
+.env
+.venv
+venv/
+env/
+
+# Specific for this project
+/chromedriver-win64/
+/BinaryOptionsTools-v2-master/
+/PocketOptionAPI-main/
+/pocketoptionapi/
+
+# Sensitive files
+*.session
+*.json
+*.log
+telethon.session
+pocket_option_cookies.json
+cookies_expiry.json
+admin_data.json
+message_templates.json
+*.exe
+*.md
+
+# IDE settings
+.idea/
+.vscode/
+
+# Don't ignore requirements.txt, but ignore local installations
+# If you use pip install -r requirements.txt -t lib
+# lib/
+# But we want to keep requirements.txt in version control
+!requirements.txt
+!README.md
+!DEPLOY.md
+
+# --- Project-specific ignores ---
+
+# Ignore environment files
+.env
+.venv
+venv/
+
+# Ignore session and credential files
+*.session
+pocket_option_cookies.json
+cookies_expiry.json
+admin_data.json
+
+# Ignore logs
+*.log
+
+# Ignore local binaries and archives
+*.exe
+*.zip
+
+# Ignore IDE settings
+.idea/
+.vscode/
+
+# Ignore generated directories from other tools
+/chromedriver-win64/
+/BinaryOptionsTools-v2-master/
+/PocketOptionAPI-main/
+/pocketoptionapi/
+
+# Keep important files
+!requirements.txt
+!README.md
+!DEPLOY.md
+!message_templates.json 
