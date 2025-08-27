@@ -1160,13 +1160,13 @@ async def set_language_handler(callback: CallbackQuery, state: FSMContext):
         lang = "ru"
     db.set_user_lang(callback.from_user.id, lang)
 
-    # After setting language, show localized welcome and start keyboard
-    from app.core.keyboards import get_start_keyboard
+    # После выбора языка показываем тот же стартовый экран, что и при /start,
+    # чтобы приветствие бралось из админ‑панели и было синхронизировано.
     try:
         await callback.message.delete()
     except Exception:
         pass
-    await callback.message.answer(t("welcome.message", lang), reply_markup=get_start_keyboard(lang))
+    await cmd_start(callback.message, state)
 
 @router.message(Command("language"))
 async def cmd_language(message: Message, state: FSMContext):
