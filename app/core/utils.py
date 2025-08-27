@@ -149,7 +149,7 @@ async def _send_album_with_caching(
         # Отправляем отдельное короткое сообщение с клавиатурой 'Назад/Back'
         if reply_markup:
             try:
-                await message.bot.send_message(chat_id=message.chat.id, text=" ", reply_markup=reply_markup)
+                await message.bot.send_message(chat_id=message.chat.id, text="\u2063", reply_markup=reply_markup)
             except Exception:
                 pass
         return sent_messages
