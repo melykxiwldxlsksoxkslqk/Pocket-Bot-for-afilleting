@@ -6,7 +6,7 @@ use crate::pocketoption::{
 };
 
 #[derive(RegionImpl)]
-#[region(path = "src/pocketoption/ws/regions.json")]
+#[region(path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/pocketoption/ws/regions.json"))]
 pub struct Regions;
 
 impl Regions {
