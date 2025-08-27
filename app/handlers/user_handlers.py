@@ -1162,3 +1162,64 @@ async def set_language_handler(callback: CallbackQuery, state: FSMContext):
 async def cmd_language(message: Message, state: FSMContext):
 	await state.clear()
 	await message.answer(t("language.select_prompt", "ru"), reply_markup=get_language_keyboard("ru"))
+
+# --- Old account (not via link) help ---
+@router.callback_query(F.data == "have_account_other_link")
+async def have_account_other_link_handler(callback: CallbackQuery):
+    """Показывает инструкцию, как удалить старый аккаунт Pocket Option, на двух языках и с картинками."""
+    lang = db.get_user_lang(callback.from_user.id)
+
+    text_en = (
+        "Want to trade with me? 🔽\n\n"
+        "But stuck with an old Pocket Option account?\n\n"
+        "Here's how to delete it (just 1 minute!):\n\n"
+        "Log in → Click your avatar → Profile\n\n"
+        "Scroll down → Tap “Delete Account”\n\n"
+        "Choose any reason → Hit “Confirm”\n"
+        "⚠️ Withdraw funds first, if any!\n\n"
+        "Done. Now you're free to create a new account and start earning 💰🚀"
+    )
+    text_ru = (
+        "Хочешь торговать со мной? 🔽\n\n"
+        "Но мешает старый аккаунт Pocket Option?\n\n"
+        "Вот как удалить его за 1 минуту:\n\n"
+        "Зайди в аккаунт → нажми на аватарку → Профиль\n\n"
+        "Пролистай вниз → нажми «Удалить учетную запись»\n\n"
+        "Выбери любую причину → нажми «Подтвердить»\n"
+        "⚠️ Выведи средства, если что-то осталось!\n\n"
+        "Готово. Теперь можешь создать новый аккаунт и зарабатывать 💰🚀"
+    )
+
+    # Порядок текста: ставим текст языка пользователя первым, затем второй язык
+    combined_text = f"{text_en}\n\n{text_ru}" if lang == "en" else f"{text_ru}\n\n{text_en}"
+
+    # Список изображений (временные названия). Если файла нет — пропускаем.
+    image_candidates = [
+        "imagen/image.png",
+        "imagen/image copy.png",
+        "imagen/image copy 2.png",
+        "imagen/image copy 3.png",
+        "imagen/image copy 4.png",
+    ]
+
+    sent_any = False
+    # Первая картинка — с основным текстом и клавиатурой; удаляем предыдущее сообщение
+    for idx, path in enumerate(image_candidates):
+        if os.path.exists(path):
+            try:
+                await _send_photo_with_caching(
+                    callback.message,
+                    path,
+                    combined_text if not sent_any else "",
+                    get_cancel_keyboard("main_menu", lang) if not sent_any else None,
+                    edit=(not sent_any)
+                )
+                sent_any = True
+            except Exception as e:
+                logger.warning(f"Не удалось отправить изображение {path}: {e}")
+        # После первой найденной продолжаем цикл, чтобы отправить остальные доступные
+    if not sent_any:
+        # Если ни одной подходящей картинки нет — отправляем текст
+        await callback.message.answer(combined_text, reply_markup=get_cancel_keyboard("main_menu", lang))
+
+    await callback.answer()

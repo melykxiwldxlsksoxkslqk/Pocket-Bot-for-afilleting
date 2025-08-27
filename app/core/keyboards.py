@@ -25,7 +25,7 @@ def get_verification_request_keyboard(lang: str = "ru") -> InlineKeyboardMarkup:
     """Кнопки для старту верифікації: 'Я зареєструвався!' та 'У мене вже є акаунт'."""
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text=t("verify.i_registered", lang), callback_data="registration_confirmed"))
-    builder.row(InlineKeyboardButton(text=t("verify.have_account_other_link", lang), url="https://teletype.in/@botx/PXB0G-8YLUu"))
+    builder.row(InlineKeyboardButton(text=t("verify.have_account_other_link", lang), callback_data="have_account_other_link"))
     return builder.as_markup()
 
 
@@ -147,7 +147,7 @@ def get_reregister_keyboard(lang: str = "ru") -> InlineKeyboardMarkup:
     """Клавиатура для процесса перерегистрации."""
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text=t("verify.i_registered", lang), callback_data="check_registration"))
-    builder.row(InlineKeyboardButton(text=t("verify.have_account_other_link", lang), url="https://teletype.in/@botx/PXB0G-8YLUu"))
+    builder.row(InlineKeyboardButton(text=t("verify.have_account_other_link", lang), callback_data="have_account_other_link"))
     return builder.as_markup()
 
 # --- Клавиатуры Администратора ---
