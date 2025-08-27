@@ -9,6 +9,7 @@ import os
 import pytz
 from loguru import logger
 from functools import wraps
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -146,21 +147,77 @@ async def _send_album_with_caching(
         for item, name in zip(sent_messages, photo_filenames):
             if getattr(item, "photo", None):
                 admin_panel.set_file_id(name, item.photo[-1].file_id)
-        # Прикрепляем клавиатуру к первому сообщению альбома (без дополнительных сообщений)
+        # Попробуем прикрепить клавиатуру к ПЕРВОМУ сообщению (именно там подпись)
         if reply_markup and sent_messages:
             try:
-                await message.bot.edit_message_reply_markup(
+                await message.bot.edit_message_caption(
                     chat_id=message.chat.id,
                     message_id=sent_messages[0].message_id,
-                    reply_markup=reply_markup
+                    caption=caption,
+                    reply_markup=reply_markup,
+                    parse_mode=parse_mode
                 )
             except Exception as e:
-                logger.warning(f"Could not set reply_markup for album: {e}")
+                logger.warning(f"Could not set keyboard via caption edit for album: {e}")
+                # Вторая попытка: только разметка
+                try:
+                    await message.bot.edit_message_reply_markup(
+                        chat_id=message.chat.id,
+                        message_id=sent_messages[0].message_id,
+                        reply_markup=reply_markup
+                    )
+                except Exception as e2:
+                    logger.warning(f"Could not set reply_markup for album: {e2}")
+                    # Фолбэк: отправляем отдельное сообщение только с клавиатурой
+                    try:
+                        await message.answer("\u2060", reply_markup=reply_markup)  # invisible spacer
+                    except Exception as e3:
+                        logger.warning(f"Could not send fallback keyboard message: {e3}")
         return sent_messages
     except Exception as e:
         logger.error(f"Failed to send album: {e}")
         # Фолбэк: отправить первое фото с подписью
         return await _send_photo_with_caching(message, photo_filenames[0], caption, reply_markup)
+
+def compose_vertical_collage(image_paths: list[str], out_path: str, max_width: int = 1280, bg_color: tuple = (255, 255, 255), spacing: int = 8) -> str:
+    """Склеивает несколько изображений вертикально в один файл и возвращает путь сохранения.
+    - Масштабирует изображения по ширине не более max_width с сохранением пропорций
+    - Между блоками добавляет отступ spacing
+    """
+    if not image_paths:
+        raise ValueError("image_paths is empty")
+
+    images: list[Image.Image] = []
+    for p in image_paths:
+        if not os.path.exists(p):
+            continue
+        img = Image.open(p).convert("RGB")
+        # Масштабируем по ширине, если необходимо
+        if img.width > max_width:
+            new_height = int(img.height * (max_width / img.width))
+            img = img.resize((max_width, new_height), Image.LANCZOS)
+        images.append(img)
+
+    if not images:
+        raise ValueError("no valid images to compose")
+
+    target_width = max(i.width for i in images)
+    total_height = sum(i.height for i in images) + spacing * (len(images) - 1)
+
+    canvas = Image.new("RGB", (target_width, total_height), color=bg_color)
+
+    y = 0
+    for idx, img in enumerate(images):
+        # Центрируем по ширине, если изображение уже меньше максимальной ширины
+        x = (target_width - img.width) // 2
+        canvas.paste(img, (x, y))
+        y += img.height
+        if idx < len(images) - 1:
+            y += spacing
+
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    canvas.save(out_path, format="JPEG", quality=90)
+    return out_path
 
 def _format_asset_name(asset: str) -> str:
     """Форматує технічну назву активу в читабельний вигляд."""

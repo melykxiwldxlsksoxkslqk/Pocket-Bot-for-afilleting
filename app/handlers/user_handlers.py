@@ -23,7 +23,7 @@ from app.core.keyboards import (
     get_cancel_keyboard, get_signal_confirmation_keyboard, get_language_keyboard
 )
 from app.core.fsm import Verification, Trading
-from app.core.utils import _send_photo_with_caching, _format_asset_name, _send_album_with_caching
+from app.core.utils import _send_photo_with_caching, _format_asset_name, _send_album_with_caching, compose_vertical_collage
 from aiogram.exceptions import TelegramBadRequest
 
 logger = logging.getLogger(__name__)
@@ -1202,8 +1202,8 @@ async def have_account_other_link_handler(callback: CallbackQuery):
             "But stuck with an old Pocket Option account?\n\n"
             "Here's how to delete it (just 1 minute!):\n\n"
             "Log in → Click your avatar → Profile\n\n"
-            "Scroll down → Tap “Delete Account”\n\n"
-            "Choose any reason → Hit “Confirm”\n"
+            "Scroll down → Tap \"Delete Account\"\n\n"
+            "Choose any reason → Hit \"Confirm\"\n"
             "⚠️ Withdraw funds first, if any!\n\n"
             "Done. Now you're free to create a new account and start earning 💰🚀"
         )
@@ -1229,10 +1229,15 @@ async def have_account_other_link_handler(callback: CallbackQuery):
         ]
         available = [p for p in images if os.path.exists(p)]
         if available:
-            # 1) Все фото одним альбомом без подписи — визуально вместе
-            await _send_album_with_caching(callback.message, available, "", None)
-            # 2) Текст с кнопкой отдельным сообщением, аккуратно под альбомом
-            await callback.message.answer(caption_text, reply_markup=get_cancel_keyboard("main_menu", lang))
+            # Формируем единое изображение-коллаж, чтобы отправить одним сообщением
+            collage_name = ("imagen/delete_account_help_en.jpg" if lang == "en" else "imagen/delete_account_help_ru.jpg")
+            try:
+                compose_vertical_collage(available, collage_name, max_width=1280)
+            except Exception:
+                # В случае ошибки склейки — отправляем первое изображение как fallback
+                collage_name = available[0]
+            admin_panel.clear_file_id(collage_name)
+            await _send_photo_with_caching(callback.message, collage_name, caption_text, get_cancel_keyboard("main_menu", lang), edit=False)
         else:
             await callback.message.answer(caption_text, reply_markup=get_cancel_keyboard("main_menu", lang))
     finally:
