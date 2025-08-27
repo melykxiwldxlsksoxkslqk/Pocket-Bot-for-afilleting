@@ -137,8 +137,8 @@ def _img(key: str, lang: str) -> str:
 @router.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
-    user_id = message.from_user.id
-    username = message.from_user.username
+    user_id = message.chat.id
+    username = getattr(message.chat, "username", None) or (getattr(message.from_user, "username", None) if hasattr(message, "from_user") else None)
     db.create_or_update_user(user_id, username)
 
     # Language selection if not set
