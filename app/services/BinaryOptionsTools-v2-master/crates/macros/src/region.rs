@@ -31,12 +31,23 @@ struct Region {
 
 impl RegionImpl {
     fn regions(&self) -> anyhow::Result<Regions> {
-        let mut file = File::open(
-            self.path
-                .as_ref()
-                .explicit()
-                .ok_or(anyhow::anyhow!("Error"))?,
-        )?;
+        // Получаем путь из атрибута; если относительный, префиксуем CARGO_MANIFEST_DIR вызывающего крейта
+        let raw_path = self
+            .path
+            .as_ref()
+            .explicit()
+            .ok_or(anyhow::anyhow!("Error"))?
+            .clone();
+
+        let resolved_path = if raw_path.is_relative() {
+            // Путь корня крейта, где используется деривация
+            let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into());
+            PathBuf::from(manifest_dir).join(raw_path)
+        } else {
+            raw_path
+        };
+
+        let mut file = File::open(&resolved_path)?;
         let mut buff = String::new();
         file.read_to_string(&mut buff)?;
 
