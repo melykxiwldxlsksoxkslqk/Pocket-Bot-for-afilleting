@@ -146,9 +146,17 @@ async def _send_album_with_caching(
         for item, name in zip(sent_messages, photo_filenames):
             if getattr(item, "photo", None):
                 admin_panel.set_file_id(name, item.photo[-1].file_id)
-        # Добавляем кнопки под последним сообщением альбома, если нужно
-        if reply_markup:
-            await message.bot.send_message(chat_id=message.chat.id, text=" ", reply_markup=reply_markup)
+        # Прикрепляем клавиатуру к последнему сообщению альбома, чтобы не слать лишний месседж
+        if reply_markup and sent_messages:
+            try:
+                await message.bot.edit_message_reply_markup(
+                    chat_id=message.chat.id,
+                    message_id=sent_messages[-1].message_id,
+                    reply_markup=reply_markup
+                )
+            except Exception:
+                # если не удалось — просто игнорируем, альбом уже отправлен
+                pass
         return sent_messages
     except Exception as e:
         logger.error(f"Failed to send album: {e}")
