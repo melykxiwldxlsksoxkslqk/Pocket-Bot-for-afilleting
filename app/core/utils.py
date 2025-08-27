@@ -121,6 +121,40 @@ async def _send_photo_with_caching(
         logger.error(f"Failed to send photo from path {photo_path}: {e}")
         return None
 
+async def _send_album_with_caching(
+    message: Message,
+    photo_filenames: list[str],
+    caption: str,
+    reply_markup: object = None,
+    parse_mode: str = "HTML"
+):
+    """Отправляет медиагруппу (альбом) фото одним сообщением.
+    Первая картинка содержит подпись, остальные — без подписи. Используется кэш file_id.
+    """
+    from app.core.dispatcher import admin_panel
+    media = []
+    for idx, name in enumerate(photo_filenames):
+        abs_path = os.path.abspath(name)
+        cached_id = admin_panel.get_file_id(name)
+        if cached_id:
+            media.append(InputMediaPhoto(media=cached_id, caption=caption if idx == 0 else None, parse_mode=parse_mode))
+        else:
+            media.append(InputMediaPhoto(media=FSInputFile(abs_path), caption=caption if idx == 0 else None, parse_mode=parse_mode))
+    try:
+        sent_messages = await message.bot.send_media_group(chat_id=message.chat.id, media=media)
+        # Кэшируем file_id
+        for item, name in zip(sent_messages, photo_filenames):
+            if getattr(item, "photo", None):
+                admin_panel.set_file_id(name, item.photo[-1].file_id)
+        # Добавляем кнопки под последним сообщением альбома, если нужно
+        if reply_markup:
+            await message.bot.send_message(chat_id=message.chat.id, text=" ", reply_markup=reply_markup)
+        return sent_messages
+    except Exception as e:
+        logger.error(f"Failed to send album: {e}")
+        # Фолбэк: отправить первое фото с подписью
+        return await _send_photo_with_caching(message, photo_filenames[0], caption, reply_markup)
+
 def _format_asset_name(asset: str) -> str:
     """Форматує технічну назву активу в читабельний вигляд."""
     name_upper = asset.upper()

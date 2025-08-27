@@ -23,7 +23,7 @@ from app.core.keyboards import (
     get_cancel_keyboard, get_signal_confirmation_keyboard, get_language_keyboard
 )
 from app.core.fsm import Verification, Trading
-from app.core.utils import _send_photo_with_caching, _format_asset_name
+from app.core.utils import _send_photo_with_caching, _format_asset_name, _send_album_with_caching
 from aiogram.exceptions import TelegramBadRequest
 
 logger = logging.getLogger(__name__)
@@ -1173,7 +1173,7 @@ async def cmd_language(message: Message, state: FSMContext):
 # --- Old account (not via link) help ---
 @router.callback_query(F.data == "have_account_other_link")
 async def have_account_other_link_handler(callback: CallbackQuery):
-    """Показывает инструкцию, как удалить старый аккаунт Pocket Option, на двух языках и с картинками."""
+    """Показывает инструкцию, как удалить старый аккаунт Pocket Option, с картинками в одном сообщении и на языке пользователя."""
     lang = db.get_user_lang(callback.from_user.id)
 
     text_en = (
@@ -1197,36 +1197,24 @@ async def have_account_other_link_handler(callback: CallbackQuery):
         "Готово. Теперь можешь создать новый аккаунт и зарабатывать 💰🚀"
     )
 
-    # Порядок текста: ставим текст языка пользователя первым, затем второй язык
-    combined_text = f"{text_en}\n\n{text_ru}" if lang == "en" else f"{text_ru}\n\n{text_en}"
+    caption_text = text_en if lang == "en" else text_ru
 
-    # Список изображений (временные названия). Если файла нет — пропускаем.
-    image_candidates = [
+    images = [
         "imagen/image.png",
         "imagen/image copy.png",
         "imagen/image copy 2.png",
         "imagen/image copy 3.png",
         "imagen/image copy 4.png",
     ]
-
-    sent_any = False
-    # Первая картинка — с основным текстом и клавиатурой; удаляем предыдущее сообщение
-    for idx, path in enumerate(image_candidates):
-        if os.path.exists(path):
-            try:
-                await _send_photo_with_caching(
-                    callback.message,
-                    path,
-                    combined_text if not sent_any else "",
-                    get_cancel_keyboard("main_menu", lang) if not sent_any else None,
-                    edit=(not sent_any)
-                )
-                sent_any = True
-            except Exception as e:
-                logger.warning(f"Не удалось отправить изображение {path}: {e}")
-        # После первой найденной продолжаем цикл, чтобы отправить остальные доступные
-    if not sent_any:
-        # Если ни одной подходящей картинки нет — отправляем текст
-        await callback.message.answer(combined_text, reply_markup=get_cancel_keyboard("main_menu", lang))
+    available = [p for p in images if os.path.exists(p)]
+    if available:
+        # Отправляем как один альбом; подпись ставим на первой картинке
+        try:
+            await _send_album_with_caching(callback.message, available, caption_text, get_cancel_keyboard("main_menu", lang))
+        except Exception:
+            # Фолбэк: одно фото с подписью
+            await _send_photo_with_caching(callback.message, available[0], caption_text, get_cancel_keyboard("main_menu", lang), edit=True)
+    else:
+        await callback.message.answer(caption_text, reply_markup=get_cancel_keyboard("main_menu", lang))
 
     await callback.answer()
