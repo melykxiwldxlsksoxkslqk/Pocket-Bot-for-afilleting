@@ -283,7 +283,12 @@ async def show_education_intro(callback: CallbackQuery):
         await callback.message.delete()
     except (TelegramBadRequest, AttributeError):
         pass
-    await _send_photo_with_caching(callback.message, _img('currencypair', lang), caption, keyboard, edit=True)
+    # Новая логика выбора картинки для блока обучения
+    edic_img = "imagen/edic_eng.png" if lang == "en" else "imagen/edic_ru.png"
+    if not os.path.exists(edic_img):
+        edic_img = _img('currencypair', lang)
+    admin_panel.clear_file_id(edic_img)
+    await _send_photo_with_caching(callback.message, edic_img, caption, keyboard, edit=True)
     await callback.answer()
 
 @router.callback_query(F.data == "show_education_from_workspace")
@@ -335,8 +340,13 @@ async def show_education_from_workspace_handler(callback: CallbackQuery):
         await callback.message.delete()
     except (TelegramBadRequest, AttributeError):
         pass
-        
-    await _send_photo_with_caching(callback.message, _img('currencypair', lang), caption, kb.as_markup(), edit=False)
+    # Новая логика выбора изображения для раздела обучения
+    edic_img = "imagen/edic_eng.png" if lang == "en" else "imagen/edic_ru.png"
+    if not os.path.exists(edic_img):
+        edic_img = _img('currencypair', lang)
+    admin_panel.clear_file_id(edic_img)
+    
+    await _send_photo_with_caching(callback.message, edic_img, caption, kb.as_markup(), edit=False)
     await callback.answer()
 
 # --- VERIFICATION & TRADING FLOW ---
