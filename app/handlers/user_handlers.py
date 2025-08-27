@@ -31,6 +31,8 @@ router = Router()
 
 # --- Lock to prevent concurrent verification requests for the same user ---
 verification_locks = {}
+# --- Simple locks to avoid double-click duplicates for info flows ---
+info_locks = set()
 
 ADMIN_IDS_STR = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS = [int(x) for x in ADMIN_IDS_STR.split(",") if x] if ADMIN_IDS_STR else []
@@ -1174,47 +1176,62 @@ async def cmd_language(message: Message, state: FSMContext):
 @router.callback_query(F.data == "have_account_other_link")
 async def have_account_other_link_handler(callback: CallbackQuery):
     """Показывает инструкцию, как удалить старый аккаунт Pocket Option, с картинками в одном сообщении и на языке пользователя."""
-    lang = db.get_user_lang(callback.from_user.id)
-
-    text_en = (
-        "Want to trade with me? 🔽\n\n"
-        "But stuck with an old Pocket Option account?\n\n"
-        "Here's how to delete it (just 1 minute!):\n\n"
-        "Log in → Click your avatar → Profile\n\n"
-        "Scroll down → Tap “Delete Account”\n\n"
-        "Choose any reason → Hit “Confirm”\n"
-        "⚠️ Withdraw funds first, if any!\n\n"
-        "Done. Now you're free to create a new account and start earning 💰🚀"
-    )
-    text_ru = (
-        "Хочешь торговать со мной? 🔽\n\n"
-        "Но мешает старый аккаунт Pocket Option?\n\n"
-        "Вот как удалить его за 1 минуту:\n\n"
-        "Зайди в аккаунт → нажми на аватарку → Профиль\n\n"
-        "Пролистай вниз → нажми «Удалить учетную запись»\n\n"
-        "Выбери любую причину → нажми «Подтвердить»\n"
-        "⚠️ Выведи средства, если что-то осталось!\n\n"
-        "Готово. Теперь можешь создать новый аккаунт и зарабатывать 💰🚀"
-    )
-
-    caption_text = text_en if lang == "en" else text_ru
-
-    images = [
-        "imagen/image.png",
-        "imagen/image copy.png",
-        "imagen/image copy 2.png",
-        "imagen/image copy 3.png",
-        "imagen/image copy 4.png",
-    ]
-    available = [p for p in images if os.path.exists(p)]
-    if available:
-        # Отправляем как один альбом; подпись ставим на первой картинке
+    user_id = callback.from_user.id
+    if user_id in info_locks:
         try:
-            await _send_album_with_caching(callback.message, available, caption_text, get_cancel_keyboard("main_menu", lang))
+            await callback.answer("Загружаю…", show_alert=False)
         except Exception:
-            # Фолбэк: одно фото с подписью
-            await _send_photo_with_caching(callback.message, available[0], caption_text, get_cancel_keyboard("main_menu", lang), edit=True)
-    else:
-        await callback.message.answer(caption_text, reply_markup=get_cancel_keyboard("main_menu", lang))
+            pass
+        return
+    info_locks.add(user_id)
+    try:
+        try:
+            await callback.answer()
+        except Exception:
+            pass
+        # Удаляем сообщение с кнопкой, чтобы исключить повторные нажатия
+        try:
+            await callback.message.delete()
+        except (TelegramBadRequest, AttributeError):
+            pass
 
-    await callback.answer()
+        lang = db.get_user_lang(user_id)
+
+        text_en = (
+            "Want to trade with me? 🔽\n\n"
+            "But stuck with an old Pocket Option account?\n\n"
+            "Here's how to delete it (just 1 minute!):\n\n"
+            "Log in → Click your avatar → Profile\n\n"
+            "Scroll down → Tap “Delete Account”\n\n"
+            "Choose any reason → Hit “Confirm”\n"
+            "⚠️ Withdraw funds first, if any!\n\n"
+            "Done. Now you're free to create a new account and start earning 💰🚀"
+        )
+        text_ru = (
+            "Хочешь торговать со мной? 🔽\n\n"
+            "Но мешает старый аккаунт Pocket Option?\n\n"
+            "Вот как удалить его за 1 минуту:\n\n"
+            "Зайди в аккаунт → нажми на аватарку → Профиль\n\n"
+            "Пролистай вниз → нажми «Удалить учетную запись»\n\n"
+            "Выбери любую причину → нажми «Подтвердить»\n"
+            "⚠️ Выведи средства, если что-то осталось!\n\n"
+            "Готово. Теперь можешь создать новый аккаунт и зарабатывать 💰🚀"
+        )
+
+        caption_text = text_en if lang == "en" else text_ru
+
+        images = [
+            "imagen/image.png",
+            "imagen/image copy.png",
+            "imagen/image copy 2.png",
+            "imagen/image copy 3.png",
+            "imagen/image copy 4.png",
+        ]
+        available = [p for p in images if os.path.exists(p)]
+        if available:
+            await _send_album_with_caching(callback.message, available, caption_text, get_cancel_keyboard("main_menu", lang))
+        else:
+            await callback.message.answer(caption_text, reply_markup=get_cancel_keyboard("main_menu", lang))
+    finally:
+        if user_id in info_locks:
+            info_locks.remove(user_id)
