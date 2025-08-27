@@ -1229,17 +1229,10 @@ async def have_account_other_link_handler(callback: CallbackQuery):
         ]
         available = [p for p in images if os.path.exists(p)]
         if available:
-            # 1) Первое фото с подписью и кнопкой (в этом сообщении будет клавиатура)
-            await _send_photo_with_caching(
-                callback.message,
-                available[0],
-                caption_text,
-                get_cancel_keyboard("main_menu", lang),
-                edit=False
-            )
-            # 2) Остальные фото альбомом без подписи и без клавиатуры (кнопка уже в первом сообщении)
-            if len(available) > 1:
-                await _send_album_with_caching(callback.message, available[1:], "", None)
+            # 1) Все фото одним альбомом без подписи — визуально вместе
+            await _send_album_with_caching(callback.message, available, "", None)
+            # 2) Текст с кнопкой отдельным сообщением, аккуратно под альбомом
+            await callback.message.answer(caption_text, reply_markup=get_cancel_keyboard("main_menu", lang))
         else:
             await callback.message.answer(caption_text, reply_markup=get_cancel_keyboard("main_menu", lang))
     finally:
