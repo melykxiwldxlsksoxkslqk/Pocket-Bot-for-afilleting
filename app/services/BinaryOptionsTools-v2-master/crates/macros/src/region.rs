@@ -39,6 +39,7 @@ impl RegionImpl {
         )?;
         let mut buff = String::new();
         file.read_to_string(&mut buff)?;
+
         Ok(serde_json::from_str(&buff)?)
     }
 }
