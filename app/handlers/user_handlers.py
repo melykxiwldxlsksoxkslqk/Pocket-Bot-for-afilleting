@@ -163,13 +163,10 @@ async def cmd_start(message: Message, state: FSMContext):
     if db.is_fully_verified(user_id):
         await show_fully_verified_screen(message, edit=False)
     else:
-        # Текст приветствия: сначала берём из админ‑панели (RU), если lang=en и у вас есть английская версия — можно расширить
-        admin_welcome = admin_panel.get_welcome_message()
-        if lang == "en":
-            en_welcome = getattr(admin_panel, "get_welcome_message_en", lambda: None)()
-            caption_text = en_welcome or t("welcome.message", "en")
-        else:
-            caption_text = admin_welcome or t("welcome.message", "ru")
+        # Текст приветствия всегда берём из админ‑панели
+        admin_welcome_ru = admin_panel.get_welcome_message()
+        admin_welcome_en = getattr(admin_panel, "get_welcome_message_en", lambda: None)()
+        caption_text = admin_welcome_en if lang == "en" and admin_welcome_en else admin_welcome_ru
         
     if caption_text:
         from app.core.keyboards import get_start_keyboard
