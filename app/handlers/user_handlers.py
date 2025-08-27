@@ -1175,7 +1175,7 @@ async def cmd_language(message: Message, state: FSMContext):
 # --- Old account (not via link) help ---
 @router.callback_query(F.data == "have_account_other_link")
 async def have_account_other_link_handler(callback: CallbackQuery):
-    """Показывает инструкцию, как удалить старый аккаунт Pocket Option, с картинками в одном сообщении и на языке пользователя."""
+    """Показывает инструкцию, как удалить старый аккаунт Pocket Option, с картинками и кнопкой."""
     user_id = callback.from_user.id
     if user_id in info_locks:
         try:
@@ -1229,7 +1229,17 @@ async def have_account_other_link_handler(callback: CallbackQuery):
         ]
         available = [p for p in images if os.path.exists(p)]
         if available:
-            await _send_album_with_caching(callback.message, available, caption_text, get_cancel_keyboard("main_menu", lang))
+            # 1) Первое фото с подписью и кнопкой (в этом сообщении будет клавиатура)
+            await _send_photo_with_caching(
+                callback.message,
+                available[0],
+                caption_text,
+                get_cancel_keyboard("main_menu", lang),
+                edit=False
+            )
+            # 2) Остальные фото альбомом без подписи и без клавиатуры (кнопка уже в первом сообщении)
+            if len(available) > 1:
+                await _send_album_with_caching(callback.message, available[1:], "", None)
         else:
             await callback.message.answer(caption_text, reply_markup=get_cancel_keyboard("main_menu", lang))
     finally:
