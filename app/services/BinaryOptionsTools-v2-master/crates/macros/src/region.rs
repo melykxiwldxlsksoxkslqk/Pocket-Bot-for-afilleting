@@ -54,7 +54,7 @@ impl RegionImpl {
 
         // 3) Относительно файла, где используется деривация (путь к regions.rs целевого крейта)
         if raw_path.is_relative() {
-            let source_file_path = self.ident.span().unwrap().source_file().path();
+            let source_file_path = self.ident.span().unwrap().source().path();
             let base = source_file_path.parent().unwrap_or(Path::new("."));
             candidates.push(base.join(&raw_path));
         }
