@@ -27,6 +27,7 @@ from app.core.fsm import Admin, AuthStates
 import app.core.database as db
 from app.handlers.user_handlers import show_signal_menu
 from app.services.telethon_code import telethon_client
+from app.core.i18n import t
 
 
 router = Router()
@@ -325,11 +326,18 @@ async def send_messages_to_users(message: Message, state: FSMContext, user_ids: 
 # Welcome Message
 @router.callback_query(F.data == "admin_set_welcome")
 async def set_welcome_msg(callback: CallbackQuery, state: FSMContext):
-    """Показує форму для зміни вітального повідомлення."""
+    """Показывает варианты изменения приветствия (RU/EN)."""
     await state.set_state(Admin.change_welcome_message)
+    kb = InlineKeyboardBuilder()
+    kb.row(
+        InlineKeyboardButton(text="RU", callback_data="admin_set_welcome_ru"),
+        InlineKeyboardButton(text="EN", callback_data="admin_set_welcome_en"),
+    )
+    kb.row(InlineKeyboardButton(text=t("admin.settings.back", "ru"), callback_data="admin_settings"))
     await callback.message.edit_text(
-        f"<b>Текущее сообщение:</b>\n\n<i>{admin_panel.get_welcome_message()}</i>\n\n✍️ Введите новое сообщение:",
-        reply_markup=get_cancel_keyboard("admin_settings"),
+        f"Текущее RU:\n<i>{admin_panel.get_welcome_message()}</i>\n\n"
+        f"Current EN:\n<i>{admin_panel.get_welcome_message_en()}</i>",
+        reply_markup=kb.as_markup(),
         parse_mode="HTML"
     )
     try:
@@ -337,33 +345,75 @@ async def set_welcome_msg(callback: CallbackQuery, state: FSMContext):
     except TelegramBadRequest:
         pass
 
+@router.callback_query(F.data == "admin_set_welcome_ru")
+async def ask_welcome_ru(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(Admin.change_welcome_message)
+    await callback.message.edit_text(
+        f"<b>Текущее RU сообщение:</b>\n\n<i>{admin_panel.get_welcome_message()}</i>\n\n✍️ Введите новое RU‑сообщение:",
+        reply_markup=get_cancel_keyboard("admin_settings"),
+        parse_mode="HTML"
+    )
+
+@router.callback_query(F.data == "admin_set_welcome_en")
+async def ask_welcome_en(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(Admin.waiting_for_text_to_edit)
+    await callback.message.edit_text(
+        f"<b>Current EN message:</b>\n\n<i>{admin_panel.get_welcome_message_en()}</i>\n\n✍️ Enter new EN message:",
+        reply_markup=get_cancel_keyboard("admin_settings"),
+        parse_mode="HTML"
+    )
+
 @router.message(Admin.change_welcome_message, F.text)
 async def process_new_welcome_message(message: Message, state: FSMContext):
-    """Оновлює вітальне повідомлення."""
     admin_panel.set_welcome_message(message.text.strip())
-    await message.answer("✅ <b>Приветственное сообщение обновлено!</b>", parse_mode="HTML")
+    await message.answer("✅ <b>RU приветствие обновлено!</b>", parse_mode="HTML")
+    await _show_settings_panel(message, state)
+
+@router.message(Admin.waiting_for_text_to_edit, F.text)
+async def process_new_welcome_message_en(message: Message, state: FSMContext):
+    admin_panel.set_welcome_message_en(message.text.strip())
+    await message.answer("✅ <b>EN welcome updated!</b>", parse_mode="HTML")
     await _show_settings_panel(message, state)
 
 # Finish Message
 @router.callback_query(F.data == "admin_set_finish_msg")
 async def set_finish_msg(callback: CallbackQuery, state: FSMContext):
-    """Показує форму для зміни повідомлення про верифікацію."""
+    """Показывает варианты изменения финального сообщения (RU/EN)."""
+    kb = InlineKeyboardBuilder()
+    kb.row(
+        InlineKeyboardButton(text="RU", callback_data="admin_set_finish_ru"),
+        InlineKeyboardButton(text="EN", callback_data="admin_set_finish_en"),
+    )
+    kb.row(InlineKeyboardButton(text=t("admin.settings.back", "ru"), callback_data="admin_settings"))
+    await callback.message.edit_text(
+        f"Текущее RU:\n<i>{admin_panel.get_finish_message()}</i>\n\n"
+        f"Current EN:\n<i>{admin_panel.get_finish_message_en()}</i>",
+        reply_markup=kb.as_markup(),
+        parse_mode="HTML"
+    )
+
+@router.callback_query(F.data == "admin_set_finish_ru")
+async def ask_finish_ru(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Admin.change_finish_message)
     await callback.message.edit_text(
-        f"<b>Текущее сообщение:</b>\n\n<i>{admin_panel.get_finish_message()}</i>\n\n✍️ Введите новое сообщение:",
+        f"<b>Текущее RU сообщение:</b>\n\n<i>{admin_panel.get_finish_message()}</i>\n\n✍️ Введите новое RU‑сообщение:",
         reply_markup=get_cancel_keyboard("admin_settings"),
         parse_mode="HTML"
     )
-    try:
-        await callback.answer()
-    except TelegramBadRequest:
-        pass
 
-@router.message(Admin.change_finish_message, F.text)
-async def process_new_finish_message(message: Message, state: FSMContext):
-    """Оновлює повідомлення про верифікацію."""
-    admin_panel.set_finish_message(message.text.strip())
-    await message.answer("✅ <b>Сообщение о верификации обновлено!</b>", parse_mode="HTML")
+@router.callback_query(F.data == "admin_set_finish_en")
+async def ask_finish_en(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(Admin.viewing_stats)
+    await callback.message.edit_text(
+        f"<b>Current EN message:</b>\n\n<i>{admin_panel.get_finish_message_en()}</i>\n\n✍️ Enter new EN message:",
+        reply_markup=get_cancel_keyboard("admin_settings"),
+        parse_mode="HTML"
+    )
+
+@router.message(Admin.viewing_stats, F.text)
+async def process_new_finish_en(message: Message, state: FSMContext):
+    admin_panel.set_finish_message_en(message.text.strip())
+    await message.answer("✅ <b>EN finish updated!</b>", parse_mode="HTML")
     await _show_settings_panel(message, state)
 
 # Referral Settings

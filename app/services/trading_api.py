@@ -446,14 +446,15 @@ class TradingAPI:
 
                 # Send the UID to the verification bot
                 sent_at = datetime.now(timezone.utc)
-                await self.telethon_client.send_message(self.affiliate_bot_username, uid)
+                sent_msg = await self.telethon_client.send_message(self.affiliate_bot_username, uid)
+                sent_id = getattr(sent_msg, 'id', None)
 
                 # Wait for response, polling the chat
                 try:
-                    timeout_env = os.getenv("AFFILIATE_RESPONSE_TIMEOUT_SECS", "20")
+                    timeout_env = os.getenv("AFFILIATE_RESPONSE_TIMEOUT_SECS", "30")
                     timeout_secs = max(5, int(timeout_env))
                 except Exception:
-                    timeout_secs = 20
+                    timeout_secs = 30
 
                 try:
                     skew_env = os.getenv("AFFILIATE_TIME_SKEW_TOLERANCE_SECS", "10")
@@ -464,6 +465,7 @@ class TradingAPI:
                 poll_interval = 1
                 deadline = datetime.now() + timedelta(seconds=timeout_secs)
                 response_text: Optional[str] = None
+                fallback_text: Optional[str] = None
 
                 while datetime.now() < deadline:
                     # Fetch a slightly larger window to avoid missing replies
@@ -485,17 +487,30 @@ class TradingAPI:
                             if msg_dt_cmp < sent_at - timedelta(seconds=skew_secs):
                                 continue
 
-                        # Ensure it relates to our UID
-                        if uid and uid not in text:
-                            continue
+                        # 1) Prefer replies that reference our sent message
+                        reply_to_id = getattr(msg, 'reply_to_msg_id', None)
+                        if sent_id is not None and reply_to_id == sent_id:
+                            response_text = text
+                            break
 
-                        response_text = text
-                        break
+                        # 2) Then prefer texts that contain the UID
+                        if uid and uid in text:
+                            response_text = text
+                            break
+
+                        # 3) Otherwise remember the first acceptable incoming message as fallback
+                        if not fallback_text:
+                            fallback_text = text
 
                     if response_text:
                         break
 
                     await asyncio.sleep(poll_interval)
+
+                # If no strong match found, use fallback if present
+                if not response_text and fallback_text:
+                    logger.info("Використовую fallback-відповідь (без UID/без reply_to), але в допустимому вікні часу")
+                    response_text = fallback_text
 
                 if response_text:
                     logger.info(f"Отримано відповідь для UID {uid}: '{response_text}'")
@@ -591,6 +606,12 @@ class TradingAPI:
         ]
         if any(re.search(p, response_text, re.IGNORECASE) for p in not_found_patterns):
             data['is_found'] = False
+            # Явно сбрасываем числовые поля, чтобы избежать ложных срабатываний
+            data.pop('uid', None)
+            data.pop('balance', None)
+            data.pop('ftd_amount', None)
+            data.pop('sum_of_deposits', None)
+            data.pop('sum_of_bonuses', None)
         else:
             # Вважаємо, що користувач знайдений, якщо є UID або інші дані
             data['is_found'] = 'uid' in data or len(data) > 0

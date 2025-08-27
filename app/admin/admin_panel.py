@@ -107,6 +107,9 @@ class AdminPanel:
             },
             "file_cache": {},
             "users": {},
+            "welcome_message": "👋 Добро пожаловать! Я — BotX BOT, ваш надёжный помощник в мире трейдинга.\n\nМоя цель — предоставлять качественные торговые сигналы и обучающие материалы, чтобы вы уверенно ориентировались на финансовых рынках.\n\nДля удобства используйте кнопки навигации ниже: ‘торговые сигналы’ или ‘обучающие материалы’.👇",
+            "welcome_message_en": "👋 Welcome! I'm BotX BOT — your reliable assistant in the trading world.\n\nI provide quality trading signals and educational materials so you can navigate the markets with confidence.\n\nUse the buttons below to proceed: ‘Trading signals’ or ‘Educational materials’.👇",
+            "finish_message_en": "Congrats! You have successfully passed verification and got full access to the bot.\n\nNow you can use trading signals and educational materials.",
             "statistics": {
                 "total_starts": 0,
                 "signals_generated": 0, # Загальна кількість
@@ -241,9 +244,18 @@ class AdminPanel:
         self.data["welcome_message"] = message
         self._save_data()
     
+    def set_welcome_message_en(self, message: str):
+        """Updates English welcome message."""
+        self.data["welcome_message_en"] = message
+        self._save_data()
+    
     def get_welcome_message(self) -> str:
         """Отримання вітального повідомлення."""
-        return self.data.get("welcome_message", "👋 Добро пожаловать! Я — BotX BOT, ваш надёжный помощник в мире трейдинга.\n\nМоя цель — предоставлять качественные торговые сигналы и обучающие материалы, чтобы вы уверенно ориентировались на финансовых рынках.\n\nДля удобства используйте кнопки навигации ниже: ‘торговые сигналы’ или ‘обучающие материалы’.👇")
+        return self.data.get("welcome_message", self._get_default_data()["welcome_message"])
+    
+    def get_welcome_message_en(self) -> str:
+        """Returns English welcome message."""
+        return self.data.get("welcome_message_en", self._get_default_data()["welcome_message_en"])
     
     def update_referral_settings(self, min_deposit: float = None, referral_link: str = None, promo_code: str = None):
         """Оновлення налаштувань реферальної програми."""
@@ -294,6 +306,19 @@ class AdminPanel:
             data["file_ids"] = {}
         data["file_ids"][file_name] = file_id
         self._save_data()
+
+    def clear_file_id(self, file_name: str) -> bool:
+        """Видаляє кешований file_id для зазначеного файлу (щоб оновити картинку)."""
+        data = self._load_data()
+        file_ids = data.get("file_ids", {})
+        if file_name in file_ids:
+            try:
+                del file_ids[file_name]
+                self._save_data()
+                return True
+            except Exception:
+                return False
+        return False
 
     def get_user_stats(self, user_id: int) -> Dict:
         """Отримання статистики користувача."""
@@ -508,7 +533,14 @@ class AdminPanel:
         """Оновлення повідомлення про успішну верифікацію."""
         self.data["finish_message"] = message
         self._save_data()
-
+    
     def get_finish_message(self) -> str:
         """Отримання повідомлення про успішну верифікацію."""
-        return self.data.get("finish_message", "🎉 <b>Поздравляем!</b>\n\nВы успешно прошли верификацию и получили полный доступ к боту.\n\nТеперь вы можете пользоваться торговыми сигналами и обучающими материалами.") 
+        return self.data.get("finish_message", "🎉 <b>Поздравляем!</b>\n\nВы успешно прошли верификацию и получили полный доступ к боту.\n\nТеперь вы можете пользоваться торговыми сигналами и обучающими материалами.")
+    
+    def set_finish_message_en(self, message: str):
+        self.data["finish_message_en"] = message
+        self._save_data()
+    
+    def get_finish_message_en(self) -> str:
+        return self.data.get("finish_message_en", self._get_default_data()["finish_message_en"]) 

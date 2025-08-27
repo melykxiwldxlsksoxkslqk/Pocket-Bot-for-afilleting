@@ -47,7 +47,7 @@ def get_fully_verified_keyboard(lang: str = "ru") -> InlineKeyboardMarkup:
     """Клавіатура для повністю верифікованого користувача."""
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text=t("start.trading_signals", lang), callback_data="show_signals"))
-    builder.row(InlineKeyboardButton(text=t("menu.group", lang), url="https://t.me/+BNBLyGz---JkNDky"))
+    builder.row(InlineKeyboardButton(text=t("menu.group", lang), url="https://t.me/+c2XcSr7zbGZlMzEx"))
     builder.row(InlineKeyboardButton(text=t("start.education", lang), callback_data="show_education"))
     return builder.as_markup()
 
@@ -179,7 +179,7 @@ def get_signal_menu_keyboard(lang: str = "ru") -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text=t("menu.how", lang), url=article_url))
     builder.row(
         InlineKeyboardButton(text=t("menu.support", lang), url="https://t.me/botx_sup"),
-        InlineKeyboardButton(text=t("menu.group", lang), url="https://t.me/+BNBLyGz---JkNDky")
+        InlineKeyboardButton(text=t("menu.group", lang), url="https://t.me/+c2XcSr7zbGZlMzEx")
     )
     return builder.as_markup()
 

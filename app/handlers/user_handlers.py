@@ -76,12 +76,15 @@ async def _prompt_subscription(message: Message, lang: str, edit: bool = True):
     }
     caption = captions["en"] if lang == "en" else captions["ru"]
     try:
-        await _send_photo_with_caching(message, _img('start', lang), caption, _build_subscription_keyboard(lang), edit=edit)
+        # Сбрасываем кэш id и отправляем корректную картинку под язык
+        img_path = ("imagen/start_eng.png" if lang == "en" else "imagen/start_ua.png")
+        admin_panel.clear_file_id(img_path)
+        await _send_photo_with_caching(message, img_path, caption, _build_subscription_keyboard(lang), edit=edit)
     except (TelegramBadRequest, AttributeError):
         await message.answer(caption, reply_markup=_build_subscription_keyboard(lang))
 
 
-async def _get_yesterday_date(lang: str) -> str:
+def _get_yesterday_date(lang: str) -> str:
     """Returns yesterday's date formatted in the user's language."""
     yesterday = datetime.now(pytz.utc) - timedelta(days=1)
     if lang == "en":
@@ -115,14 +118,14 @@ def _generate_dynamic_facts(lang: str) -> str:
 def _img(key: str, lang: str) -> str:
 	locale = 'en' if lang == 'en' else 'ru'
 	mapping = {
-		'start': {'ru': 'start_ua.png', 'en': 'start_eng.png'},
+		'start': {'ru': '2step_eng.png', 'en': '2step_ua.png'},
 		'market': {'ru': 'market_ua.png', 'en': 'market_eng.png'},
 		'currencypair': {'ru': 'currencypair_ua.png', 'en': 'currencypair_eu.png'},
 		'expirationtime': {'ru': 'expirationtime_ua.png', 'en': 'expirationtime_eng.png'},
 		'notregist': {'ru': 'dontregist_ua.png', 'en': 'notregist_eng.png'},
 		'notbalance': {'ru': 'notbalace_ua.png', 'en': 'notbalace_eng.png'},
 		'finish': {'ru': 'finish_ua.png', 'en': 'finish_eng.png'},
-		'twostep': {'ru': '2step_ua.png', 'en': '2step_eng.png'},
+		'twostep': {'ru': 'start_ua.png', 'en': 'start_eng.png'},
 		'buy': {'ru': 'Buy_ua.png', 'en': 'buy_eng.png'},
 		'sell': {'ru': 'sell_ua.png', 'en': 'sell_eng.png'},
 	}
@@ -160,12 +163,20 @@ async def cmd_start(message: Message, state: FSMContext):
     if db.is_fully_verified(user_id):
         await show_fully_verified_screen(message, edit=False)
     else:
-        # Локализованный приветственный текст согласно выбранному языку
-        caption_text = t("welcome.message", lang)
+        # Текст приветствия: сначала берём из админ‑панели (RU), если lang=en и у вас есть английская версия — можно расширить
+        admin_welcome = admin_panel.get_welcome_message()
+        if lang == "en":
+            en_welcome = getattr(admin_panel, "get_welcome_message_en", lambda: None)()
+            caption_text = en_welcome or t("welcome.message", "en")
+        else:
+            caption_text = admin_welcome or t("welcome.message", "ru")
         
     if caption_text:
         from app.core.keyboards import get_start_keyboard
-        await _send_photo_with_caching(message, _img('start', lang), caption_text, get_start_keyboard(lang))
+        # Сброс кэша, чтобы Telegram не показывал старое изображение другого языка
+        img_path = ("imagen/2step_eng.png" if lang == "en" else "imagen/2step_ua.png")
+        admin_panel.clear_file_id(img_path)
+        await _send_photo_with_caching(message, img_path, caption_text, get_start_keyboard(lang))
 
 @router.callback_query(F.data == "main_menu")
 async def back_to_main_menu(callback: CallbackQuery, state: FSMContext):
@@ -216,11 +227,11 @@ async def show_education_intro(callback: CallbackQuery):
     if lang == "en":
         lessons = [
             ("LESSON 1 Japanese Candlesticks & Timeframes — The Language of the Market", "https://telegra.ph/LESSON-1-Japanese-Candlesticks--Timeframes--The-Language-of-the-Market-08-26"),
-            ("LESSON 2 Technical Analysis — Dow’s Laws: Why Price Tells You Everything", "https://telegra.ph/LESSON-2-Technical-Analysis--Dows-Laws--Why-Price-Tells-You-Everything-08-26"),
+            ("LESSON 2 Technical Analysis — Dow's Laws: Why Price Tells You Everything", "https://telegra.ph/LESSON-2-Technical-Analysis--Dows-Laws--Why-Price-Tells-You-Everything-08-26"),
             ("LESSON 3 Who Moves the Price? Understanding Market Players, Trends & Ranges", "https://telegra.ph/LESSON-3-Who-Moves-the-Price-Understanding-Market-Players-Trends--Ranges-08-26"),
             ("LESSON 4 Support & Resistance — How to Find Key Price Zones That Actually Matter", "https://telegra.ph/LESSON-4-Support--Resistance--How-to-Find-Key-Price-Zones-That-Actually-Matter-08-26"),
-            ("LESSON 5 Pullback vs Reversal — Don’t Get Trapped at the Worst Possible Moment", "https://telegra.ph/LESSON-5-Pullback-vs-Reversal--Dont-Get-Trapped-at-the-Worst-Possible-Moment-08-26"),
-            ("LESSON 6 Who’s in Control? How to Read the Strength of Buyers vs Sellers", "https://telegra.ph/LESSON-6-Whos-in-Control-How-to-Read-the-Strength-of-Buyers-vs-Sellers-08-26"),
+            ("LESSON 5 Pullback vs Reversal — Don't Get Trapped at the Worst Possible Moment", "https://telegra.ph/LESSON-5-Pullback-vs-Reversal--Dont-Get-Trapped-at-the-Worst-Possible-Moment-08-26"),
+            ("LESSON 6 Who's in Control? How to Read the Strength of Buyers vs Sellers", "https://telegra.ph/LESSON-6-Whos-in-Control-How-to-Read-the-Strength-of-Buyers-vs-Sellers-08-26"),
             ("LESSON 7 How to Spot Trend Exhaustion — Before It Wrecks Your Trade", "https://telegra.ph/LESSON-7-How-to-Spot-Trend-Exhaustion--Before-It-Wrecks-Your-Trade-08-26"),
             ("LESSON 8 Move Potential — How to Know If Price Has Room to Run Before You Enter", "https://telegra.ph/LESSON-8-Move-Potential--How-to-Know-If-Price-Has-Room-to-Run-Before-You-Enter-08-26"),
             ("MOTIVATION: Stop Waiting — Start Trading. Your Opportunity is Already Here", "https://telegra.ph/MOTIVATION-ARTICLE-1-Stop-Waiting--Start-Trading-Your-Opportunity-is-Already-Here-08-26"),
@@ -229,7 +240,7 @@ async def show_education_intro(callback: CallbackQuery):
         lesson_9_url = "https://telegra.ph/LESSON-9-The-Beginner-Strategy-That-Works--Your-First-1000-Setup-08-26"
         caption = (
             "This course is a solid foundation on which more advanced strategies and approaches are built. "
-            "After completing it, you’ll be ready to move to practice with a clear understanding of what and why happens in the market.\n\n"
+            "After completing it, you'll be ready to move to practice with a clear understanding of what and why happens in the market.\n\n"
         )
     else:
         lessons = [
@@ -286,11 +297,11 @@ async def show_education_from_workspace_handler(callback: CallbackQuery):
     if lang == "en":
         lessons = [
             ("LESSON 1 Japanese Candlesticks & Timeframes — The Language of the Market", "https://telegra.ph/LESSON-1-Japanese-Candlesticks--Timeframes--The-Language-of-the-Market-08-26"),
-            ("LESSON 2 Technical Analysis — Dow’s Laws: Why Price Tells You Everything", "https://telegra.ph/LESSON-2-Technical-Analysis--Dows-Laws--Why-Price-Tells-You-Everything-08-26"),
+            ("LESSON 2 Technical Analysis — Dow's Laws: Why Price Tells You Everything", "https://telegra.ph/LESSON-2-Technical-Analysis--Dows-Laws--Why-Price-Tells-You-Everything-08-26"),
             ("LESSON 3 Who Moves the Price? Understanding Market Players, Trends & Ranges", "https://telegra.ph/LESSON-3-Who-Moves-the-Price-Understanding-Market-Players-Trends--Ranges-08-26"),
             ("LESSON 4 Support & Resistance — How to Find Key Price Zones That Actually Matter", "https://telegra.ph/LESSON-4-Support--Resistance--How-to-Find-Key-Price-Zones-That-Actually-Matter-08-26"),
-            ("LESSON 5 Pullback vs Reversal — Don’t Get Trapped at the Worst Possible Moment", "https://telegra.ph/LESSON-5-Pullback-vs-Reversal--Dont-Get-Trapped-at-the-Worst-Possible-Moment-08-26"),
-            ("LESSON 6 Who’s in Control? How to Read the Strength of Buyers vs Sellers", "https://telegra.ph/LESSON-6-Whos-in-Control-How-to-Read-the-Strength-of-Buyers-vs-Sellers-08-26"),
+            ("LESSON 5 Pullback vs Reversal — Don't Get Trapped at the Worst Possible Moment", "https://telegra.ph/LESSON-5-Pullback-vs-Reversal--Dont-Get-Trapped-at-the-Worst-Possible-Moment-08-26"),
+            ("LESSON 6 Who's in Control? How to Read the Strength of Buyers vs Sellers", "https://telegra.ph/LESSON-6-Whos-in-Control-How-to-Read-the-Strength-of-Buyers-vs-Sellers-08-26"),
             ("LESSON 7 How to Spot Trend Exhaustion — Before It Wrecks Your Trade", "https://telegra.ph/LESSON-7-How-to-Spot-Trend-Exhaustion--Before-It-Wrecks-Your-Trade-08-26"),
             ("LESSON 8 Move Potential — How to Know If Price Has Room to Run Before You Enter", "https://telegra.ph/LESSON-8-Move-Potential--How-to-Know-If-Price-Has-Room-to-Run-Before-You-Enter-08-26"),
             ("LESSON 9 The Beginner Strategy That Works — Your First 1000$ Setup", "https://telegra.ph/LESSON-9-The-Beginner-Strategy-That-Works--Your-First-1000-Setup-08-26"),
@@ -405,7 +416,23 @@ async def unified_access_handler(callback: CallbackQuery, state: FSMContext):
 
         if callback.data == "open_all_lessons_prompt":
             caption_text = t("education.locked_prompt", db.get_user_lang(callback.from_user.id), link=referral_link)
-            await _send_photo_with_caching(callback.message, _img('twostep', db.get_user_lang(callback.from_user.id)), caption_text, get_verification_request_keyboard(db.get_user_lang(callback.from_user.id)), edit=True)
+            try:
+                lang_cur = db.get_user_lang(callback.from_user.id)
+                img_path = ("imagen/start_eng.png" if lang_cur == "en" else "imagen/start_ua.png")
+                admin_panel.clear_file_id(img_path)
+                await _send_photo_with_caching(
+                    callback.message,
+                    img_path,
+                    caption_text,
+                    get_verification_request_keyboard(lang_cur),
+                    edit=True,
+                )
+            except Exception:
+                await callback.message.answer(
+                    caption_text,
+                    reply_markup=get_verification_request_keyboard(db.get_user_lang(callback.from_user.id)),
+                    parse_mode="HTML"
+                )
         else:  # Handles "show_signals" and "trade_signals_prompt"
             await start_verification_flow(callback)
         
@@ -453,7 +480,7 @@ async def ask_for_uid_handler(callback: CallbackQuery, state: FSMContext):
     lang = db.get_user_lang(callback.from_user.id)
     caption = t("verify.enter_uid", lang) if t("verify.enter_uid", lang) != "verify.enter_uid" else "Добре, тепер надішліть мені ваш UID (цифровий ідентифікатор) з платформи Pocket Option, щоб я міг перевірити вашу реєстрацію."
  
-    await _send_photo_with_caching(callback.message, _img('twostep', lang), caption, get_cancel_keyboard("main_menu", lang))
+    await _send_photo_with_caching(callback.message, 'ttt.jpg', caption, get_cancel_keyboard("main_menu", lang))
     await callback.answer()
 
 @router.message(Verification.waiting_for_uid)
@@ -605,14 +632,15 @@ async def show_fully_verified_screen(message: Message, edit: bool = False):
     lang = db.get_user_lang(message.chat.id)
     admin_caption = admin_panel.get_finish_message()
     if lang == "en":
-        caption = t("finish.message", "en") if t("finish.message", "en") != "finish.message" else (
+        en_finish = getattr(admin_panel, "get_finish_message_en", lambda: None)()
+        caption = en_finish or (t("finish.message", "en") if t("finish.message", "en") != "finish.message" else (
             "Congrats! You have successfully passed verification and got full access to the bot.\n\n"
             "Now you can use trading signals and educational materials."
-        )
+        ))
     else:
-        caption = t("finish.message", "ru") if t("finish.message", "ru") != "finish.message" else (
-            admin_caption or "Поздравляем! Вы успешно прошли верификацию и получили полный доступ к боту.\n\nТеперь вы можете пользоваться торговыми сигналами и обучающими материалами."
-        )
+        # Для RU берем приоритетно из админ-панели, если задано, иначе из i18n
+        caption = (admin_caption or t("finish.message", "ru") if t("finish.message", "ru") != "finish.message" else 
+            "Поздравляем! Вы успешно прошли верификацию и получили полный доступ к боту.\n\nТеперь вы можете пользоваться торговыми сигналами и обучающими материалами.")
     await _send_photo_with_caching(message, _img('finish', lang), caption, get_fully_verified_keyboard(lang), edit=edit)
 
 async def show_signal_menu(message: Message, edit: bool):
@@ -900,27 +928,69 @@ async def process_and_send_signal(message: Message, state: FSMContext):
     
     # --- Full Signal Text Construction ---
     if lang_msg == "en":
+        def _norm(val: str) -> str:
+            if not isinstance(val, str):
+                return str(val)
+            lower = val.strip().lower()
+            mapping = {
+                # Volatility
+                "висока": "High", "высока": "High", "высокая": "High", "високая": "High",
+                "середня": "Medium", "средняя": "Medium",
+                "низька": "Low", "низкая": "Low",
+                # Sentiment
+                "бичачий": "Bullish", "бычий": "Bullish",
+                "ведмежий": "Bearish", "медвежий": "Bearish",
+                "нейтральний": "Neutral", "нейтральный": "Neutral", "змішаний": "Mixed", "смешанный": "Mixed",
+                # TradingView summary/MA/Osc
+                "продавати": "SELL", "продавать": "SELL",
+                "купувати": "BUY", "покупать": "BUY",
+                "нейтрально": "NEUTRAL",
+                # RSI
+                "рівна лінія": "Flat line", "ровная линия": "Flat line",
+                "коливання": "Fluctuation", "колебания": "Fluctuation",
+                "різкий рух": "Sharp move", "резкий рух": "Sharp move", "резкое движение": "Sharp move",
+                # MACD
+                "перетин лінії сигналу": "Signal line crossover",
+                "пересечение сигнальной линии": "Signal line crossover",
+                # Bollinger
+                "коливання біля середньої лінії": "Oscillating near middle band",
+                "колебания возле средней линии": "Oscillating near middle band",
+                # Pattern
+                "формування клину": "Wedge forming", "формирование клина": "Wedge forming",
+            }
+            return mapping.get(lower, val)
+
+        vol = _norm(signal_result.get('volatility', 'N/A'))
+        sent = _norm(signal_result.get('sentiment', 'N/A'))
+        tv_summary = _norm(signal_result.get('tv_summary', 'N/A'))
+        tv_ma = _norm(signal_result.get('tv_moving_averages', 'N/A'))
+        tv_osc = _norm(signal_result.get('tv_oscillators', 'N/A'))
+        rsi_txt = _norm(signal_result.get('rsi', 'N/A'))
+        macd_txt = _norm(signal_result.get('macd', 'N/A'))
+        boll_txt = _norm(signal_result.get('bollinger_bands', 'N/A'))
+        pattern_txt = _norm(signal_result.get('pattern', 'N/A'))
+
         signal_text = (
             f"<b>{direction_emoji} SIGNAL {('UP' if direction == 'call' else 'DOWN')} {direction_emoji}</b>\n\n"
             f"<b>📈 Instrument:</b> <code>{_format_asset_name(asset)}</code> ({forecast_sign}{forecast_percentage}%)\n"
             f"<b>⏱ Close time:</b> <code>{close_time_local.strftime('%H:%M:%S')}</code>\n\n"
             "<b><u>Market overview:</u></b>\n"
-            f"  <b>• Volatility:</b> {signal_result.get('volatility', 'N/A')}\n"
-            f"  <b>• Sentiment:</b> {signal_result.get('sentiment', 'N/A')}\n"
+            f"  <b>• Volatility:</b> {vol}\n"
+            f"  <b>• Sentiment:</b> {sent}\n"
             f"  <b>• Volume:</b> {signal_result.get('volume', 'N/A')}\n\n"
             "<b><u>Market snapshot:</u></b>\n"
             f"  <b>• Current price:</b> {price}\n"
             f"  <b>• Support (S1):</b> {signal_result.get('support', 'N/A')}\n"
             f"  <b>• Resistance (R1):</b> {signal_result.get('resistance', 'N/A')}\n\n"
             "<b><u>TradingView rating:</u></b>\n"
-            f"  <b>• Overall:</b> {signal_result.get('tv_summary', 'N/A')}\n"
-            f"  <b>• Moving averages:</b> {signal_result.get('tv_moving_averages', 'N/A')}\n"
-            f"  <b>• Oscillators:</b> {signal_result.get('tv_oscillators', 'N/A')}\n\n"
+            f"  <b>• Overall:</b> {tv_summary}\n"
+            f"  <b>• Moving averages:</b> {tv_ma}\n"
+            f"  <b>• Oscillators:</b> {tv_osc}\n\n"
             "<b><u>Technical analysis:</u></b>\n"
-            f"  <b>• RSI (14):</b> {signal_result.get('rsi', 'N/A')}\n"
-            f"  <b>• MACD:</b> {signal_result.get('macd', 'N/A')}\n"
-            f"  <b>• Bollinger Bands:</b> {signal_result.get('bollinger_bands', 'N/A')}\n"
-            f"  <b>• Pattern:</b> {signal_result.get('pattern', 'N/A')}\n\n"
+            f"  <b>• RSI (14):</b> {rsi_txt}\n"
+            f"  <b>• MACD:</b> {macd_txt}\n"
+            f"  <b>• Bollinger Bands:</b> {boll_txt}\n"
+            f"  <b>• Pattern:</b> {pattern_txt}\n\n"
             f"<i>⚠️ It is recommended to enter a trade within 60 seconds after receiving the signal.</i>"
         )
     else:
