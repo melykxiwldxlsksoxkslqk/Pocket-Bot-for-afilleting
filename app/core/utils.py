@@ -146,12 +146,23 @@ async def _send_album_with_caching(
         for item, name in zip(sent_messages, photo_filenames):
             if getattr(item, "photo", None):
                 admin_panel.set_file_id(name, item.photo[-1].file_id)
-        # Отправляем отдельное короткое сообщение с клавиатурой 'Назад/Back'
-        if reply_markup:
+        # Пытаемся прикрепить клавиатуру к первому сообщению альбома
+        if reply_markup and sent_messages:
             try:
-                await message.bot.send_message(chat_id=message.chat.id, text="\u2063", reply_markup=reply_markup)
-            except Exception:
-                pass
+                await message.bot.edit_message_caption(
+                    chat_id=message.chat.id,
+                    message_id=sent_messages[0].message_id,
+                    caption=caption,
+                    parse_mode=parse_mode,
+                    reply_markup=reply_markup,
+                )
+            except Exception as e:
+                logger.warning(f"Could not attach keyboard to album: {e}")
+                # Фолбэк: отдельное короткое сообщение с невидимым символом
+                try:
+                    await message.bot.send_message(chat_id=message.chat.id, text="\u2063", reply_markup=reply_markup)
+                except Exception:
+                    pass
         return sent_messages
     except Exception as e:
         logger.error(f"Failed to send album: {e}")
