@@ -13,7 +13,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Tuple, Optional
 from app.core.utils import logger
 
@@ -130,7 +130,7 @@ class PocketOptionAuth:
             logger.info("No valid expiry file found. Manual login required.")
             return None
         
-        if datetime.now() >= expiry_time:
+        if datetime.now(timezone.utc) >= expiry_time:
             logger.warning("Session has expired. Manual login required.")
             return None
         
@@ -245,7 +245,7 @@ class PocketOptionAuth:
         if not expiry_time:
             return False
         # Return True if the current time is before the expiry time
-        return datetime.now() < expiry_time
+        return datetime.now(timezone.utc) < expiry_time
 
     def get_expiration_time(self) -> Optional[datetime]:
         """Reads the expiry time from the dedicated expiry file."""
@@ -254,7 +254,13 @@ class PocketOptionAuth:
         try:
             with open(self.expiry_file, 'r') as f:
                 data = json.load(f)
-            return datetime.fromisoformat(data['expiry'])
+            exp = datetime.fromisoformat(data['expiry'])
+            # Normalize to timezone-aware UTC to avoid naive/aware comparisons
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            else:
+                exp = exp.astimezone(timezone.utc)
+            return exp
         except (json.JSONDecodeError, KeyError, TypeError):
             return None
 			
@@ -265,11 +271,11 @@ class PocketOptionAuth:
         expiry_time = self.get_expiration_time()
         if not expiry_time:
             return "Сессия не найдена или недействительна."
-        
-        if datetime.now() >= expiry_time:
+        now_utc = datetime.now(timezone.utc)
+        if now_utc >= expiry_time:
             return "Термин дії сесії закінчився."
-            
-        days_left = (expiry_time - datetime.now()).days
+        
+        days_left = (expiry_time - now_utc).days
         if days_left <= days_threshold:
             return f"⚠️ Увага! Термін дії сесії закінчується через {days_left} дн."
         

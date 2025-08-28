@@ -13,6 +13,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+# Simple GUI
+import tkinter as tk
+from tkinter import messagebox
+
 LOGIN_URL = "https://pocketoption.com/en/login/"
 DESKTOP = Path.home() / "Desktop"
 OUT_JSON = DESKTOP / "pocket_ssid.json"
@@ -27,7 +31,7 @@ def build_ssid(cookies_list):
         return None, 0, None
 
     raw = urllib.parse.unquote(autologin.get("value", ""))
-    m = re.search(r'"user_id";(?:s:\d+:"|i:)(\d+)', raw)
+    m = re.search(r'"user_id";(?:s:\\d+:"|i:)(\\d+)', raw)
     uid = int(m.group(1)) if m else None
 
     is_demo = 1 if (platform and str(platform.get("value", "")).strip() == "1") else 0
@@ -45,8 +49,7 @@ def build_ssid(cookies_list):
     return ssid, is_demo, expiry_dt
 
 
-def main():
-    print("Открываю Chrome для авторизации на PocketOption...")
+def start_browser():
     chrome_options = Options()
     chrome_options.add_argument("--window-size=1280,800")
     chrome_options.add_argument("--disable-extensions")
@@ -55,21 +58,15 @@ def main():
     service = Service()  # Selenium Manager подберёт драйвер автоматически
     driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.set_page_load_timeout(60)
+    driver.get(LOGIN_URL)
+    return driver
 
+
+def export_now(driver: webdriver.Chrome) -> bool:
     try:
-        driver.get(LOGIN_URL)
-        print("Войдите в аккаунт и отметьте 'Remember me'. После входа подождите, пока загрузится кабинет.")
-        # Ждём появления признака рабочей области, но ограничим максимальным временем ожидания
-        try:
-            WebDriverWait(driver, 120).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-        except Exception:
-            pass
-
-        print("Жду несколько секунд для фиксации cookies...")
-        time.sleep(5)
-
+        # Немного подождём чтобы страница точно обновила cookies
+        time.sleep(3)
         cookies = driver.get_cookies()
-        # Нормализуем формат под запись в единый JSON
         norm = []
         for c in cookies:
             item = {"name": c.get("name"), "value": c.get("value")}
@@ -82,23 +79,77 @@ def main():
 
         ssid, is_demo, expiry_dt = build_ssid(norm)
         if not ssid:
-            print("❌ Не найдено 'ci_session' или 'autologin'. Проверьте, что Remember me отмечен.")
-            return 2
+            messagebox.showerror("Pocket Export", "Не найдено 'ci_session' или 'autologin'. Убедитесь, что вы вошли и отметили 'Remember me'.")
+            return False
 
-        data = {
-            "ssid": ssid,
-            "cookies": norm,
-            "expiry": expiry_dt.isoformat(),
-        }
+        DESKTOP.mkdir(parents=True, exist_ok=True)
+        data = {"ssid": ssid, "cookies": norm, "expiry": expiry_dt.isoformat()}
         OUT_JSON.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"✅ Сохранено: {OUT_JSON}")
-        print("Теперь отправьте этот файл боту (кнопка 'Загрузить JSON').")
-        return 0
-    finally:
+        messagebox.showinfo("Pocket Export", f"Файл сохранён:\n{OUT_JSON}")
+        return True
+    except Exception as e:
+        messagebox.showerror("Pocket Export", f"Ошибка экспорта: {e}")
+        return False
+
+
+def main():
+    driver = start_browser()
+
+    # Небольшое окно управления
+    root = tk.Tk()
+    root.title("Pocket Cookies Export")
+    root.geometry("420x200")
+    root.resizable(False, False)
+
+    instructions = (
+        "1) Войдите в аккаунт PocketOption в открывшемся окне Chrome.\n"
+        "2) Отметьте 'Remember me'.\n"
+        "3) После загрузки кабинета нажмите кнопку ниже."
+    )
+
+    lbl = tk.Label(root, text=instructions, justify=tk.LEFT, wraplength=400)
+    lbl.pack(padx=12, pady=12)
+
+    btn_frame = tk.Frame(root)
+    btn_frame.pack(pady=8)
+
+    def on_confirm():
+        ok = export_now(driver)
         try:
             driver.quit()
         except Exception:
             pass
+        if ok:
+            root.destroy()
+        else:
+            # оставим окно открытым для повторной попытки
+            pass
+
+    def on_cancel():
+        try:
+            driver.quit()
+        except Exception:
+            pass
+        root.destroy()
+
+    btn_ok = tk.Button(btn_frame, text="Я вошёл в аккаунт", width=22, command=on_confirm)
+    btn_ok.grid(row=0, column=0, padx=6)
+
+    btn_cancel = tk.Button(btn_frame, text="Отмена", width=12, command=on_cancel)
+    btn_cancel.grid(row=0, column=1, padx=6)
+
+    # Дополнительная страховка: ждать до 2 минут видимость body (не блокирует GUI)
+    def check_loaded():
+        try:
+            WebDriverWait(driver, 0.1).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        except Exception:
+            pass
+        # переустановим таймер; просто держим цикл событий
+        root.after(500, check_loaded)
+
+    root.after(500, check_loaded)
+    root.mainloop()
+    return 0
 
 
 if __name__ == "__main__":
