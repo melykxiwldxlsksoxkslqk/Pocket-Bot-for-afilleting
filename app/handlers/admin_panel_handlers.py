@@ -6,7 +6,7 @@ admin_panel_handlers.py
 import logging
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import asyncio
 from aiogram import F, Router
 from aiogram.filters import Command, StateFilter
@@ -622,13 +622,13 @@ async def check_cookies_status(callback: CallbackQuery):
     if are_valid:
         expiry_time = trading_api.auth.get_expiration_time()
         if expiry_time:
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             time_left = expiry_time - now
             days = time_left.days
             hours, remainder = divmod(time_left.seconds, 3600)
             minutes, _ = divmod(remainder, 60)
             
-            expiry_date_str = expiry_time.strftime("%Y-%m-%d %H:%M:%S")
+            expiry_date_str = expiry_time.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
             message_text = (
                 f"✅ Статус cookies\n\n"
