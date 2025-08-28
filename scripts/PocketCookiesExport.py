@@ -5,6 +5,7 @@ import time
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import os
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -12,10 +13,11 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import WebDriverException
 
 # Simple GUI
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 
 LOGIN_URL = "https://pocketoption.com/en/login/"
 DESKTOP = Path.home() / "Desktop"
@@ -49,14 +51,68 @@ def build_ssid(cookies_list):
     return ssid, is_demo, expiry_dt
 
 
+def find_chrome_binary() -> Path | None:
+    env = [
+        os.environ.get("GOOGLE_CHROME_BIN"),
+        os.environ.get("CHROME_BINARY"),
+    ]
+    pf = Path(os.environ.get("PROGRAMFILES", r"C:\\Program Files"))
+    pfx86 = Path(os.environ.get("PROGRAMFILES(X86)", r"C:\\Program Files (x86)"))
+    local = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData/Local")))
+    candidates = [
+        *[Path(p) for p in env if p],
+        pf / "Google/Chrome/Application/chrome.exe",
+        pfx86 / "Google/Chrome/Application/chrome.exe",
+        local / "Google/Chrome/Application/chrome.exe",
+    ]
+    for c in candidates:
+        try:
+            if c and c.is_file():
+                return c
+        except Exception:
+            continue
+    return None
+
+
+def prompt_chrome_binary() -> Path | None:
+    # transient root for dialog
+    tmp = tk.Tk(); tmp.withdraw()
+    path = filedialog.askopenfilename(
+        title="Укажите путь к chrome.exe",
+        initialdir=str(Path("C:/Program Files/Google/Chrome/Application")),
+        filetypes=[("chrome.exe", "chrome.exe"), ("EXE", "*.exe")],
+    )
+    try:
+        tmp.destroy()
+    except Exception:
+        pass
+    if path:
+        p = Path(path)
+        return p if p.is_file() else None
+    return None
+
+
 def start_browser():
     chrome_options = Options()
     chrome_options.add_argument("--window-size=1280,800")
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
 
+    chrome_path = find_chrome_binary()
+    if chrome_path:
+        chrome_options.binary_location = str(chrome_path)
+
     service = Service()  # Selenium Manager подберёт драйвер автоматически
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    try:
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+    except WebDriverException:
+        # Попробуем спросить путь к chrome.exe вручную и повторить
+        picked = prompt_chrome_binary()
+        if not picked:
+            raise
+        chrome_options.binary_location = str(picked)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+
     driver.set_page_load_timeout(60)
     driver.get(LOGIN_URL)
     return driver
@@ -138,13 +194,11 @@ def main():
     btn_cancel = tk.Button(btn_frame, text="Отмена", width=12, command=on_cancel)
     btn_cancel.grid(row=0, column=1, padx=6)
 
-    # Дополнительная страховка: ждать до 2 минут видимость body (не блокирует GUI)
     def check_loaded():
         try:
             WebDriverWait(driver, 0.1).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
         except Exception:
             pass
-        # переустановим таймер; просто держим цикл событий
         root.after(500, check_loaded)
 
     root.after(500, check_loaded)

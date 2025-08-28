@@ -42,7 +42,7 @@ SECRET_TEST_UIDS = {x.strip() for x in os.getenv("SECRET_TEST_UIDS", "").split("
 
 # --- Mandatory subscription config & helpers ---
 REQUIRED_CHANNELS = ["@bvxbdferherh"]  # Public channel username or chat ID
-SUBSCRIPTION_LINKS = [("Наш канал", "https://t.me/bvxbdferherh")]
+SUBSCRIPTION_LINKS = [("Наш канал", "https://t.me/+c2XcSr7zbGZlMzEx")]
 
 async def _is_user_subscribed(user_id: int) -> bool:
     """Checks that user is a member of ALL required channels."""
@@ -489,7 +489,11 @@ async def ask_for_uid_handler(callback: CallbackQuery, state: FSMContext):
     lang = db.get_user_lang(callback.from_user.id)
     caption = t("verify.enter_uid", lang) if t("verify.enter_uid", lang) != "verify.enter_uid" else "Добре, тепер надішліть мені ваш UID (цифровий ідентифікатор) з платформи Pocket Option, щоб я міг перевірити вашу реєстрацію."
  
-    await _send_photo_with_caching(callback.message, 'ttt.jpg', caption, get_cancel_keyboard("main_menu", lang))
+    # Показываем просто текст без картинки
+    try:
+        await callback.message.answer(caption, reply_markup=get_cancel_keyboard("main_menu", lang))
+    except TelegramBadRequest:
+        await callback.message.answer(caption)
     await callback.answer()
 
 @router.message(Verification.waiting_for_uid)
