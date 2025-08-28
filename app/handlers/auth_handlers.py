@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 import logging
 import asyncio
+from aiogram.types import Message
 
 from app.core.dispatcher import trading_api
 from app.core.fsm import Authorization
@@ -59,3 +60,48 @@ async def handle_confirm_auth(callback: CallbackQuery, state: FSMContext, bot: B
     else:
         await callback.message.edit_text(t("auth.failed", lang) if t("auth.failed", lang) != "auth.failed" else "❌ Не вдалося підтвердити авторизацію. Будь ласка, спробуйте ще раз:\n\n1. Переконайтесь, що ви увійшли в акаунт.\n2. Оновіть сторінку (F5) у браузері.\n3. Натисніть кнопку підтвердження ще раз.", reply_markup=get_auth_confirmation_keyboard(lang))
     await callback.answer()
+
+# ===== Упрощённая загрузка единым JSON: {"ssid": "...", "cookies": [...], "expiry": "ISO"} =====
+@router.callback_query(F.data == "upload_ssid_json")
+async def prompt_upload_ssid_json(callback: CallbackQuery):
+    await callback.message.edit_text(
+        "Пришлите JSON-файл: {\"ssid\": \"...\", \"cookies\": [...](необязательно), \"expiry\": \"ISO\"(необязательно)."
+    )
+    await callback.answer()
+
+@router.message(F.document)
+async def handle_ssid_json_upload(message: Message):
+    try:
+        file = await message.bot.get_file(message.document.file_id)
+        file_bytes = await message.bot.download_file(file.file_path)
+        import json
+        from datetime import datetime, timezone
+        from pathlib import Path
+        from app.services.pocket_option_auth import PocketOptionAuth
+
+        data = json.loads(file_bytes.read().decode("utf-8"))
+        ssid = data.get("ssid")
+        if not ssid or not isinstance(ssid, str):
+            await message.answer("❌ Нет ключа 'ssid' в JSON.")
+            return
+
+        cookies = data.get("cookies")
+        expiry_iso = data.get("expiry")
+        if isinstance(cookies, list):
+            auth = PocketOptionAuth()
+            auth._save_session(cookies)
+            if expiry_iso:
+                try:
+                    _ = datetime.fromisoformat(expiry_iso.replace("Z", "+00:00"))
+                except Exception:
+                    expiry_iso = datetime.now(timezone.utc).isoformat()
+                Path(auth.expiry_file).write_text(json.dumps({"expiry": expiry_iso}), encoding="utf-8")
+
+        ok = await trading_api.initialize_session()
+        if ok:
+            await message.answer("✅ SSID применён. API инициализирован.")
+        else:
+            await message.answer("⚠️ SSID принят. Если баланс не появился — отправьте также cookies или повторите.")
+    except Exception as e:
+        logger.exception("Failed to handle SSID JSON")
+        await message.answer(f"❌ Ошибка обработки: {e}")

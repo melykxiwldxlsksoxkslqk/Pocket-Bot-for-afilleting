@@ -211,6 +211,7 @@ def get_auth_confirmation_keyboard(lang: str = "ru"):
     """Возвращает клавиатуру для подтверждения ручной авторизации."""
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text=t("auth.confirm_logged_in", lang), callback_data="confirm_auth"))
+    builder.row(InlineKeyboardButton(text="📄 Загрузить JSON", callback_data="upload_ssid_json"))
     return builder.as_markup()
 
 
