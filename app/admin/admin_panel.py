@@ -137,6 +137,9 @@ class AdminPanel:
             InlineKeyboardButton(text=t("admin.cookies_status", lang), callback_data="admin_check_cookies")
         )
         builder.row(
+            InlineKeyboardButton(text="📄 Загрузить JSON (SSID)", callback_data="admin_upload_ssid_json")
+        )
+        builder.row(
             InlineKeyboardButton(text=t("admin.maintenance", lang), callback_data="admin_maintenance")
         )
         builder.row(

@@ -659,3 +659,14 @@ async def back_to_admin_panel(callback: CallbackQuery, state: FSMContext):
 async def back_to_settings(callback: CallbackQuery, state: FSMContext):
     """Обробник для повернення в меню налаштувань."""
     await _show_settings_panel(callback, state)
+
+@router.callback_query(F.data == "admin_upload_ssid_json")
+async def admin_upload_ssid_json(callback: CallbackQuery):
+    """Подсказка админу загрузить JSON с SSID."""
+    await callback.message.edit_text(
+        "Отправьте сюда JSON-файл, созданный экспортёром (pocket_ssid.json).\n"
+        "Формат: {\"ssid\": \"...\", \"cookies\": [...](необязательно), \"expiry\": \"ISO\"(необязательно).",
+        reply_markup=get_back_to_panel_keyboard("ru"),
+        parse_mode="HTML",
+    )
+    await callback.answer()
