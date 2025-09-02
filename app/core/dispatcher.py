@@ -33,7 +33,7 @@ except ValueError:
 storage = MemoryStorage()
 # Use higher timeouts; IPv4 предпочтительнее через системную настройку (gai.conf)
 session = AiohttpSession(
-    timeout=ClientTimeout(total=30, connect=10)
+    timeout=ClientTimeout(total=60, connect=20)
 )
 bot = Bot(token=BOT_TOKEN, session=session)
 dp = Dispatcher(storage=storage)

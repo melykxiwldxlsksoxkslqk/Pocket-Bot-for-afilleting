@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, timedelta
 from app.core.dispatcher import bot, admin_panel, trading_api
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.exceptions import TelegramNetworkError
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +11,20 @@ logger = logging.getLogger(__name__)
 SESSION_CHECK_INTERVAL_OK = 1800  # 30 минут, если все в порядке
 SESSION_CHECK_INTERVAL_ERROR = 3600  # 1 час, если сессия умерла (чтобы не спамить)
 PROACTIVE_REFRESH_THRESHOLD_HOURS = 12  # За сколько часов до истечения пытаться обновить
+
+async def _safe_send_message(chat_id: int, text: str, reply_markup=None, parse_mode: str | None = None) -> bool:
+	retries = 3
+	for attempt in range(retries):
+		try:
+			await bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode=parse_mode, request_timeout=45)
+			return True
+		except TelegramNetworkError as e:
+			logger.warning(f"send_message timeout (attempt {attempt+1}/{retries}): {e}")
+			await asyncio.sleep(5)
+		except Exception:
+			logger.exception("send_message failed")
+			return False
+	return False
 
 async def periodic_auth_check(bot, trading_api, admin_panel, interval_seconds: int = 3600):
     """
@@ -34,7 +49,7 @@ async def periodic_auth_check(bot, trading_api, admin_panel, interval_seconds: i
                     auth_keyboard = InlineKeyboardMarkup(inline_keyboard=[
                         [InlineKeyboardButton(text="🔑 Обновить сессию", callback_data="start_manual_auth")]
                     ])
-                    await bot.send_message(
+                    await _safe_send_message(
                         admin_id,
                         "🔴 <b>Критическая ошибка запуска!</b>\n\nСессия API недействительна или отсутствует. Бот не может получать рыночные данные.\n\nНажмите кнопку ниже, чтобы начать процесс авторизации.",
                         reply_markup=auth_keyboard,
@@ -54,7 +69,7 @@ async def periodic_auth_check(bot, trading_api, admin_panel, interval_seconds: i
                     auth_keyboard = InlineKeyboardMarkup(inline_keyboard=[
                         [InlineKeyboardButton(text="🔑 Обновить сессию", callback_data="start_manual_auth")]
                     ])
-                    await bot.send_message(
+                    await _safe_send_message(
                         admin_id,
                         f"🟡 <b>Предупреждение: срок действия сессии скоро закончится</b>\n\n{expiry_warning} Чтобы избежать сбоев в работе, рекомендуется обновить её.",
                         reply_markup=auth_keyboard,
