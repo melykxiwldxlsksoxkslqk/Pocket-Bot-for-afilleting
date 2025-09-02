@@ -1,5 +1,6 @@
 from aiogram.types import Message, BufferedInputFile, InputMediaPhoto, FSInputFile
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramNetworkError
 import random
 from datetime import datetime, timedelta
 import locale
@@ -40,6 +41,18 @@ def async_retry(max_retries=3, delay=2, allowed_exceptions=()):
             return None
         return wrapper
     return decorator
+
+@async_retry(max_retries=3, delay=5, allowed_exceptions=(TelegramNetworkError,))
+async def _answer_photo_rt(message: Message, *, photo, caption: str, reply_markup=None, parse_mode: str | None = "HTML"):
+    return await message.answer_photo(photo=photo, caption=caption, reply_markup=reply_markup, parse_mode=parse_mode, request_timeout=45)
+
+@async_retry(max_retries=3, delay=5, allowed_exceptions=(TelegramNetworkError,))
+async def _bot_send_photo_rt(message: Message, *, chat_id: int, photo, caption: str, reply_markup=None, parse_mode: str | None = "HTML"):
+    return await message.bot.send_photo(chat_id=chat_id, photo=photo, caption=caption, reply_markup=reply_markup, parse_mode=parse_mode, request_timeout=45)
+
+@async_retry(max_retries=3, delay=5, allowed_exceptions=(TelegramNetworkError,))
+async def _send_media_group_rt(message: Message, *, chat_id: int, media: list[InputMediaPhoto]):
+    return await message.bot.send_media_group(chat_id=chat_id, media=media, request_timeout=60)
 
 async def check_api_initialized(message: Message) -> bool:
     """Перевірка ініціалізації API"""
@@ -85,7 +98,8 @@ async def _send_photo_with_caching(
         
         # Now, send a new message in the same chat.
         # We need to use message.chat.id because the original message is gone.
-        return await message.bot.send_photo(
+        return await _bot_send_photo_rt(
+            message,
             chat_id=message.chat.id,
             photo=FSInputFile(photo_path) if file_id is None else file_id,
             caption=caption,
@@ -96,7 +110,8 @@ async def _send_photo_with_caching(
     # --- Original logic for sending a new message ---
     if file_id:
         try:
-            sent_message = await message.answer_photo(
+            sent_message = await _answer_photo_rt(
+                message,
                 photo=file_id,
                 caption=caption,
                 reply_markup=reply_markup,
@@ -109,7 +124,8 @@ async def _send_photo_with_caching(
 
     # Send as a new file and cache the ID
     try:
-        sent_message = await message.answer_photo(
+        sent_message = await _answer_photo_rt(
+            message,
             photo=FSInputFile(photo_path),
             caption=caption,
             reply_markup=reply_markup,
@@ -142,7 +158,7 @@ async def _send_album_with_caching(
         else:
             media.append(InputMediaPhoto(media=FSInputFile(abs_path), caption=caption if idx == 0 else None, parse_mode=parse_mode))
     try:
-        sent_messages = await message.bot.send_media_group(chat_id=message.chat.id, media=media)
+        sent_messages = await _send_media_group_rt(message, chat_id=message.chat.id, media=media)
         # Кэшируем file_id
         for item, name in zip(sent_messages, photo_filenames):
             if getattr(item, "photo", None):
