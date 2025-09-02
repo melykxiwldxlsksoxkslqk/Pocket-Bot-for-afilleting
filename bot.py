@@ -95,13 +95,13 @@ async def main():
 	logger.info("Роутеры успешно зарегистрированы.")
 
 	# 6. Запуск бота
-	# Прогреваем me, чтобы dp.start_polling не делал сетевой вызов при плохой сети
-	for attempt in range(6):
+	# Короткий прогрев me (уменьшено, чтобы не задерживать старт)
+	for attempt in range(2):
 		try:
-			await bot.get_me(request_timeout=30)
+			await bot.get_me(request_timeout=15)
 			break
 		except TelegramNetworkError as e:
-			logger.warning(f"get_me timeout (attempt {attempt+1}/6), retry in 5s: {e}")
+			logger.warning(f"get_me timeout (attempt {attempt+1}/2), retry in 5s: {e}")
 			await asyncio.sleep(5)
 	try:
 		await bot.delete_webhook(drop_pending_updates=True, request_timeout=30)
