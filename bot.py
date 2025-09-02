@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.exceptions import TelegramForbiddenError
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, BotCommand
 
 # Загрузка переменных окружения и настройка логирования
@@ -94,6 +95,14 @@ async def main():
 	logger.info("Роутеры успешно зарегистрированы.")
 
 	# 6. Запуск бота
+	# Прогреваем me, чтобы dp.start_polling не делал сетевой вызов при плохой сети
+	for attempt in range(6):
+		try:
+			await bot.get_me(request_timeout=30)
+			break
+		except TelegramNetworkError as e:
+			logger.warning(f"get_me timeout (attempt {attempt+1}/6), retry in 5s: {e}")
+			await asyncio.sleep(5)
 	try:
 		await bot.delete_webhook(drop_pending_updates=True, request_timeout=30)
 	except Exception as e:
