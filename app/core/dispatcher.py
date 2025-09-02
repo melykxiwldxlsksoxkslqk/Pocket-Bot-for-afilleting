@@ -31,10 +31,9 @@ except ValueError:
 
 # Инициализация бота и диспетчера
 storage = MemoryStorage()
-# Use IPv4-only connector and higher timeouts to avoid IPv6 route issues/timeouts
+# Use higher timeouts; IPv4 предпочтительнее через системную настройку (gai.conf)
 session = AiohttpSession(
-    timeout=ClientTimeout(total=30, connect=10),
-    connector=TCPConnector(family=socket.AF_INET)
+    timeout=ClientTimeout(total=30, connect=10)
 )
 bot = Bot(token=BOT_TOKEN, session=session)
 dp = Dispatcher(storage=storage)
