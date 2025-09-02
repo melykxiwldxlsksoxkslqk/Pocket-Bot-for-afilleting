@@ -94,7 +94,10 @@ async def main():
 	logger.info("Роутеры успешно зарегистрированы.")
 
 	# 6. Запуск бота
-	await bot.delete_webhook(drop_pending_updates=True)
+	try:
+		await bot.delete_webhook(drop_pending_updates=True, request_timeout=30)
+	except Exception as e:
+		logger.warning(f"Не удалось удалить вебхук (продолжаю поллинг): {e}")
 	logger.info("Запуск поллинга...")
 	try:
 		await dp.start_polling(bot, skip_updates=True)

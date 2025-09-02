@@ -5,6 +5,9 @@ from dotenv import load_dotenv
 from app.admin.admin_panel import AdminPanel
 from app.services.telethon_code import telethon_client  # Import the instance directly
 from app.services.trading_api import TradingAPI
+import socket
+from aiohttp import ClientTimeout, TCPConnector
+from aiogram.client.session.aiohttp import AiohttpSession
 
 # Загружаем переменные окружения из .env файла
 load_dotenv()
@@ -28,7 +31,12 @@ except ValueError:
 
 # Инициализация бота и диспетчера
 storage = MemoryStorage()
-bot = Bot(token=BOT_TOKEN)
+# Use IPv4-only connector and higher timeouts to avoid IPv6 route issues/timeouts
+session = AiohttpSession(
+    timeout=ClientTimeout(total=30, connect=10),
+    connector=TCPConnector(family=socket.AF_INET)
+)
+bot = Bot(token=BOT_TOKEN, session=session)
 dp = Dispatcher(storage=storage)
 
 # Инициализация панели администратора
