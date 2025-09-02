@@ -6,8 +6,8 @@ from app.admin.admin_panel import AdminPanel
 from app.services.telethon_code import telethon_client  # Import the instance directly
 from app.services.trading_api import TradingAPI
 import socket
-from aiohttp import ClientTimeout, TCPConnector
-from aiogram.client.session.aiohttp import AiohttpSession
+# from aiohttp import ClientTimeout, TCPConnector
+# from aiogram.client.session.aiohttp import AiohttpSession
 
 # Загружаем переменные окружения из .env файла
 load_dotenv()
@@ -31,11 +31,10 @@ except ValueError:
 
 # Инициализация бота и диспетчера
 storage = MemoryStorage()
-# Use higher timeouts; IPv4 предпочтительнее через системную настройку (gai.conf)
-session = AiohttpSession(
-    timeout=ClientTimeout(total=60, connect=20)
-)
-bot = Bot(token=BOT_TOKEN, session=session)
+# Возвращаем дефолтную сессию aiogram, чтобы избежать ошибок сложения ClientTimeout и int в polling
+# session = AiohttpSession()
+# bot = Bot(token=BOT_TOKEN, session=session)
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=storage)
 
 # Инициализация панели администратора
